@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        {% if object %}Edit{% else %}Create New{% endif %} Member
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'member_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% crispy form %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const payFeeCheckbox = document.getElementById('id_pay_registration_fee');
+    const paymentFields = document.getElementById('payment-fields');
+    
+    function togglePaymentFields() {
+        if (payFeeCheckbox.checked) {
+            paymentFields.style.display = 'block';
+            // Make payment fields required
+            document.getElementById('id_revenue_type').required = true;
+            document.getElementById('id_amount').required = true;
+            document.getElementById('id_payment_method').required = true;
+            document.getElementById('id_account').required = true;
+            document.getElementById('id_payment_date').required = true;
+        } else {
+            paymentFields.style.display = 'none';
+            // Remove required attribute
+            document.getElementById('id_revenue_type').required = false;
+            document.getElementById('id_amount').required = false;
+            document.getElementById('id_payment_method').required = false;
+            document.getElementById('id_account').required = false;
+            document.getElementById('id_payment_date').required = false;
+        }
+    }
+    
+    // Initial state
+    togglePaymentFields();
+    
+    // Add event listener
+    payFeeCheckbox.addEventListener('change', togglePaymentFields);
+    
+    // Set default payment date to today
+    const paymentDateField = document.getElementById('id_payment_date');
+    if (!paymentDateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        paymentDateField.value = today;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="?view=months" class="btn btn-sm btn-outline-secondary {% if view_type == 'months' %}active{% endif %}">
+                Monthly View
+            </a>
+            <a href="?view=years" class="btn btn-sm btn-outline-secondary {% if view_type == 'years' %}active{% endif %}">
+                Yearly View
+            </a>
+        </div>
+        {% if view_type == 'years' %}
+        <div class="btn-group me-2">
+            <a href="?view=years&compare=1" class="btn btn-sm btn-outline-info">
+                Compare with Previous Period
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quick Stats Row -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted">Total Balance</h6>
+                        <h4 class="card-text text-primary">UGX {{ total_balance|floatformat:2|intcomma }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-wallet fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted">Active Accounts</h6>
+                        <h4 class="card-text text-success">{{ accounts.count }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-university fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted">This Month</h6>
+                        <h4 class="card-text text-info">UGX {{ current_month_revenue|floatformat:2|intcomma }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted">Avg Monthly</h6>
+                        <h4 class="card-text text-warning">UGX {{ avg_monthly|floatformat:2|intcomma }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calculator fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="chart-container">
+            <h5 class="card-title">{{ chart_title }}</h5>
+            <canvas id="revenueChart" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Account Details -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Account Balances</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th>Type</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for account in accounts %}
+                            <tr>
+                                <td>{{ account.name }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ account.get_account_type_display }}</span>
+                                </td>
+                                <td class="{% if account.balance > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    UGX {{ account.balance|floatformat:2|intcomma }}
+                                </td>
+                                <td>
+                                    {% if account.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No accounts configured</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    // Parse the JSON data from Django template
+    const chartLabels = JSON.parse('{{ chart_labels|escapejs }}');
+    const chartData = JSON.parse('{{ chart_data|escapejs }}');
+    const compareData = JSON.parse('{{ compare_data|escapejs }}');
+    const compareLabels = JSON.parse('{{ compare_labels|escapejs }}');
+
+    // Create the main dataset
+    const datasets = [{
+        label: 'Revenue',
+        data: chartData,
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4
+    }];
+
+    // Add comparison dataset if available
+    if (compareData && compareData !== 'null') {
+        datasets.push({
+            label: 'Previous Period',
+            data: JSON.parse(compareData),
+            borderColor: '#6c757d',
+            backgroundColor: 'rgba(108, 117, 125, 0.1)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            fill: true,
+            tension: 0.4
+        });
+    }
+
+    // Chart configuration
+    const revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `UGX ${context.parsed.y.toLocaleString('en-UG', {minimumFractionDigits: 2})}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'UGX ' + value.toLocaleString('en-UG', {minimumFractionDigits: 0});
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
