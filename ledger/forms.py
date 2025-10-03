@@ -38,15 +38,13 @@ class MemberForm(forms.ModelForm):
         label='Payment Date'
     )
 
+    
     class Meta:
         model = Member
         fields = [
-            'name', 'rid', 'contact', 'email', 
-            'residence', 'club', 'buddy_group'
+            'name', 'rid', 'contact', 'email', 'residence', 
+            'club', 'other_club_name', 'buddy_group'
         ]
-        widgets = {
-            'residence': forms.Textarea(attrs={'rows': 2}),
-        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
