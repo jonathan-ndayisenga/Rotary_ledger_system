@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Record New Payment</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'payment_in_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Payments
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% crispy form %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default payment date to today
+    const paymentDateField = document.getElementById('id_payment_date');
+    if (!paymentDateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        paymentDateField.value = today;
+    }
+    
+    // Auto-fill amount based on revenue type selection
+    const revenueTypeField = document.getElementById('id_revenue_type');
+    const amountField = document.getElementById('id_amount');
+    
+    // You would need to fetch default amounts via AJAX in a real implementation
+    // For now, this is a placeholder for that functionality
+});
+</script>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Payment Details</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'payment_in_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Payments
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Payment Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th width="30%">Receipt Number:</th>
+                        <td><strong>{{ payment.receipt_number }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Payer Name:</th>
+                        <td>
+                            {% if payment.payer_member %}
+                                <a href="{% url 'member_detail' payment.payer_member.pk %}">
+                                    {{ payment.payer_name }}
+                                </a>
+                            {% else %}
+                                {{ payment.payer_name }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Contact:</th>
+                        <td>{{ payment.contact|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ payment.email|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Revenue Type:</th>
+                        <td>
+                            <span class="badge bg-info">{{ payment.revenue_type.name }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Amount:</th>
+                        <td class="text-success">
+                            <strong>KSh {{ payment.amount|floatformat:2 }}</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Payment Date:</th>
+                        <td>{{ payment.payment_date }}</td>
+                    </tr>
+                    <tr>
+                        <th>Payment Method:</th>
+                        <td>
+                            <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Account:</th>
+                        <td>{{ payment.account.name }}</td>
+                    </tr>
+                    {% if payment.notes %}
+                    <tr>
+                        <th>Notes:</th>
+                        <td>{{ payment.notes|linebreaks }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Recorded By:</th>
+                        <td>{{ payment.created_by.username }} on {{ payment.created_at }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="#" class="btn btn-outline-primary">
+                        <i class="fas fa-print"></i> Print Receipt
+                    </a>
+                    {% if user.role == 'admin' %}
+                    <a href="{% url 'payment_in_delete' payment.pk %}" class="btn btn-outline-danger">
+                        <i class="fas fa-trash"></i> Delete Payment
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

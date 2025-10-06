@@ -1,6 +1,6 @@
 # ledger/management/commands/create_initial_data.py
 from django.core.management.base import BaseCommand
-from ledger.models import RevenueType, Account
+from ledger.models import RevenueType, Account, Supplier, User
 
 class Command(BaseCommand):
     help = 'Create initial revenue types and accounts'
@@ -44,3 +44,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS('Successfully created initial data')
         )
+
+
+
+

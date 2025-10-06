@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt {{ payment.receipt_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .receipt-details { margin: 20px 0; }
+        .receipt-details table { width: 100%; border-collapse: collapse; }
+        .receipt-details td { padding: 8px; border-bottom: 1px solid #ddd; }
+        .receipt-footer { margin-top: 30px; text-align: center; }
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt-header">
+        <h2>ROTARACT CLUB OFFICIAL RECEIPT</h2>
+        <p>Financial Ledger System</p>
+    </div>
+    
+    <div class="receipt-details">
+        <table>
+            <tr><td><strong>Receipt Number:</strong></td><td>{{ payment.receipt_number }}</td></tr>
+            <tr><td><strong>Date:</strong></td><td>{{ payment.payment_date }}</td></tr>
+            <tr><td><strong>Received From:</strong></td><td>{{ payment.payer_name }}</td></tr>
+            <tr><td><strong>Amount:</strong></td><td>KSh {{ payment.amount|floatformat:2 }}</td></tr>
+            <tr><td><strong>Payment Method:</strong></td><td>{{ payment.get_payment_method_display }}</td></tr>
+            <tr><td><strong>Revenue Type:</strong></td><td>{{ payment.revenue_type.name }}</td></tr>
+            {% if payment.notes %}
+            <tr><td><strong>Notes:</strong></td><td>{{ payment.notes }}</td></tr>
+            {% endif %}
+        </table>
+    </div>
+    
+    <div class="receipt-footer">
+        <p>Thank you for your payment!</p>
+        <p>Generated on: {% now "F j, Y" %}</p>
+    </div>
+    
+    <div class="no-print" style="margin-top: 20px;">
+        <button onclick="window.print()">Print Receipt</button>
+        <button onclick="window.close()">Close</button>
+    </div>
+</body>
+</html>

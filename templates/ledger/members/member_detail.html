@@ -46,7 +46,11 @@
                     <tr>
                         <th>Club:</th>
                         <td>
-                            <span class="badge bg-primary">{{ member.get_club_display }}</span>
+                            {% if member.club == "other" and member.other_club_name %}
+                                <span class="badge bg-warning text-dark">{{ member.other_club_name }}</span>
+                            {% else %}
+                                <span class="badge bg-primary">{{ member.get_club_display }}</span>
+                            {% endif %}
                         </td>
                     </tr>
                     <tr>
@@ -81,7 +85,7 @@
                             <tr>
                                 <th>Date</th>
                                 <th>Type</th>
-                                <th>Amount</th>
+                                <th>Amount (UGX)</th>
                                 <th>Receipt</th>
                             </tr>
                         </thead>
@@ -90,7 +94,7 @@
                             <tr>
                                 <td>{{ payment.payment_date }}</td>
                                 <td>{{ payment.revenue_type.name }}</td>
-                                <td>KSh {{ payment.amount|floatformat:2 }}</td>
+                                <td>UGX {{ payment.amount|floatformat:2 }}</td>
                                 <td>
                                     <span class="badge bg-secondary">{{ payment.receipt_number }}</span>
                                 </td>

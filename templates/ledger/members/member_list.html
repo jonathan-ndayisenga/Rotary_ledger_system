@@ -20,16 +20,24 @@
         <form method="get" class="form">
             <div class="row">
                 <div class="col-md-3">
-                    {{ search_form.name|as_crispy_field }}
+                    {% if search_form.name %}
+                        {{ search_form.name|as_crispy_field }}
+                    {% endif %}
                 </div>
                 <div class="col-md-2">
-                    {{ search_form.rid|as_crispy_field }}
+                    {% if search_form.rid %}
+                        {{ search_form.rid|as_crispy_field }}
+                    {% endif %}
                 </div>
                 <div class="col-md-2">
-                    {{ search_form.club|as_crispy_field }}
+                    {% if search_form.club %}
+                        {{ search_form.club|as_crispy_field }}
+                    {% endif %}
                 </div>
                 <div class="col-md-3">
-                    {{ search_form.buddy_group|as_crispy_field }}
+                    {% if search_form.buddy_group %}
+                        {{ search_form.buddy_group|as_crispy_field }}
+                    {% endif %}
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
@@ -76,7 +84,11 @@
                         <td>{{ member.contact }}</td>
                         <td>{{ member.email }}</td>
                         <td>
-                            <span class="badge bg-secondary">{{ member.get_club_display }}</span>
+                            {% if member.club == "other" and member.other_club_name %}
+                                <span class="badge bg-warning text-dark">{{ member.other_club_name }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ member.get_club_display }}</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if member.buddy_group %}

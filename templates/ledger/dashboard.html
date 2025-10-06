@@ -151,22 +151,27 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('revenueChart').getContext('2d');
-    
-    // Parse the JSON data from Django template
+
+    // Parse JSON data passed from Django
     const chartLabels = JSON.parse('{{ chart_labels|escapejs }}');
     const chartData = JSON.parse('{{ chart_data|escapejs }}');
     const compareData = JSON.parse('{{ compare_data|escapejs }}');
-    const compareLabels = JSON.parse('{{ compare_labels|escapejs }}');
+    const viewType = '{{ view_type }}';  // 'months' or 'years'
 
-    // Create the main dataset
+    // Pick chart type depending on view
+    let chartType = viewType === 'years' ? 'line' : 'bar';
+
+    // Base dataset
     const datasets = [{
         label: 'Revenue',
         data: chartData,
+        backgroundColor: viewType === 'years' 
+            ? 'rgba(13, 110, 253, 0.1)'   // lighter for line
+            : 'rgba(13, 110, 253, 0.6)',  // darker for bar
         borderColor: '#0d6efd',
-        backgroundColor: 'rgba(13, 110, 253, 0.1)',
         borderWidth: 3,
-        fill: true,
-        tension: 0.4
+        fill: viewType === 'years',
+        tension: 0   // keeps it crisp, no jelly curves
     }];
 
     // Add comparison dataset if available
@@ -175,28 +180,26 @@ document.addEventListener('DOMContentLoaded', function() {
             label: 'Previous Period',
             data: JSON.parse(compareData),
             borderColor: '#6c757d',
-            backgroundColor: 'rgba(108, 117, 125, 0.1)',
+            backgroundColor: 'rgba(108, 117, 125, 0.2)',
             borderWidth: 2,
             borderDash: [5, 5],
-            fill: true,
-            tension: 0.4
+            fill: false,
+            tension: 0
         });
     }
 
-    // Chart configuration
+    // Build chart
     const revenueChart = new Chart(ctx, {
-        type: 'line',
+        type: chartType,
         data: {
             labels: chartLabels,
             datasets: datasets
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,   // keeps proportion, no jelly stretching
             plugins: {
-                legend: {
-                    position: 'top',
-                },
+                legend: { position: 'top' },
                 tooltip: {
                     mode: 'index',
                     intersect: false,

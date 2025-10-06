@@ -1,5 +1,3 @@
-from django.db import models
-
 # ledger/models.py
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -7,6 +5,14 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 
 User = get_user_model()
+
+class ExpenseType(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return self.name
 
 class Member(models.Model):
     CLUB_CHOICES = [
@@ -21,7 +27,7 @@ class Member(models.Model):
     email = models.EmailField(unique=True)
     residence = models.CharField(max_length=200)
     club = models.CharField(max_length=50, choices=CLUB_CHOICES, default='rotaract')
-    other_club_name = models.CharField(max_length=200, blank=True, null=True)  # 👈 new field
+    other_club_name = models.CharField(max_length=200, blank=True, null=True)
     buddy_group = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -70,6 +76,7 @@ class Account(models.Model):
     account_type = models.CharField(max_length=10, choices=ACCOUNT_TYPES)
     account_number = models.CharField(max_length=50, blank=True)
     balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    bank_name = models.CharField(max_length=100, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     
     def __str__(self):
@@ -99,13 +106,11 @@ class PaymentIn(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.receipt_number:
-            # Generate receipt number (you can customize this logic)
             last_receipt = PaymentIn.objects.order_by('-id').first()
             last_number = int(last_receipt.receipt_number.split('-')[-1]) if last_receipt else 0
             self.receipt_number = f"RC-{self.payment_date.strftime('%Y%m')}-{last_number + 1:04d}"
         
         super().save(*args, **kwargs)
-        # Update account balance
         self.account.balance += self.amount
         self.account.save()
     
@@ -119,32 +124,40 @@ class PaymentOut(models.Model):
         ('cheque', 'Cheque'),
     ]
     
-    payee_supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
+    payee_supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True)
     payee_name = models.CharField(max_length=200)
     contact = models.CharField(max_length=15, blank=True)
     reason = models.TextField()
-    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    
+    # New fields
+    expense_type = models.ForeignKey('ExpenseType', on_delete=models.SET_NULL, null=True, blank=True)
+    invoice_number = models.CharField(max_length=50, blank=True, null=True, unique=True)
+    
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
     payment_date = models.DateField()
     payment_method = models.CharField(max_length=10, choices=PAYMENT_METHODS)
-    account = models.ForeignKey(Account, on_delete=models.PROTECT)
+    account = models.ForeignKey('Account', on_delete=models.PROTECT)
     receipt_number = models.CharField(max_length=20, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     
     def save(self, *args, **kwargs):
         if not self.receipt_number:
-            # Generate payment receipt number
             last_payment = PaymentOut.objects.order_by('-id').first()
             last_number = int(last_payment.receipt_number.split('-')[-1]) if last_payment else 0
             self.receipt_number = f"PY-{self.payment_date.strftime('%Y%m')}-{last_number + 1:04d}"
         
         super().save(*args, **kwargs)
-        # Update account balance
         self.account.balance -= self.amount
         self.account.save()
     
     def __str__(self):
         return f"Payment {self.receipt_number} - {self.payee_name}"
+    
 
 class AuditLog(models.Model):
     ACTION_CHOICES = [
