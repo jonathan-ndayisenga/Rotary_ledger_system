@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-6">
+    <h2 class="text-2xl font-bold mb-4">Payment Details</h2>
+
+    <div class="grid grid-cols-2 gap-4">
+        <p><strong>Payee:</strong> {{ payment.payee_name }}</p>
+        <p><strong>Expense Type:</strong> {{ payment.expense_type }}</p>
+        <p><strong>Amount:</strong> {{ payment.amount|floatformat:2 }}</p>
+        <p><strong>Account:</strong> {{ payment.account.name }}</p>
+        <p><strong>Invoice:</strong> {{ payment.invoice_number }}</p>
+        <p><strong>Payment Method:</strong> {{ payment.payment_method }}</p>
+        <p><strong>Payment Date:</strong> {{ payment.payment_date|date:"M d, Y" }}</p>
+        <p><strong>Reason:</strong> {{ payment.reason }}</p>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'payment_out_update' payment.id %}" class="btn btn-warning">Edit</a>
+        <a href="{% url 'payment_out_list' %}" class="btn btn-secondary">Back to List</a>
+    </div>
+</div>
+{% endblock %}

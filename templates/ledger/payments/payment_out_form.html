@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Record Payment Out</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            {{ form.supplier|as_crispy_field }}
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="newSupplierToggle">
+            <label class="form-check-label" for="newSupplierToggle">
+                Create New Supplier
+            </label>
+        </div>
+
+        <div id="newSupplierFields" style="display:none;">
+            {{ form.new_supplier_name|as_crispy_field }}
+            {{ form.new_supplier_contact|as_crispy_field }}
+            {{ form.new_supplier_email|as_crispy_field }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.expense_type|as_crispy_field }}
+            {{ form.invoice_number|as_crispy_field }}
+            {{ form.amount|as_crispy_field }}
+            {{ form.payment_date|as_crispy_field }}
+            {{ form.payment_method|as_crispy_field }}
+            {{ form.account|as_crispy_field }}
+            {{ form.reason|as_crispy_field }}
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Payment</button>
+        <a href="{% url 'payment_out_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+<script>
+document.getElementById('newSupplierToggle').addEventListener('change', function(){
+    const fields = document.getElementById('newSupplierFields');
+    fields.style.display = this.checked ? 'block' : 'none';
+});
+</script>
+{% endblock %}

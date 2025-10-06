@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models.functions import TruncMonth, TruncYear
 import json
 from decimal import Decimal
-from .models import PaymentIn, PaymentOut, Account, Member, Supplier, RevenueType
+from .models import PaymentIn, PaymentOut, Account, Member, Supplier, RevenueType, ExpenseType
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -17,7 +17,7 @@ from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.contrib import messages
-
+from .forms import PaymentOutForm
 # JSON Encoder for Decimals
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -479,7 +479,7 @@ class PaymentOutListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = PaymentOut.objects.select_related(
-            'payee_supplier', 'expense_type', 'account'
+            'payee_supplier', 'account'
         ).order_by('-payment_date', '-created_at')
         
         # Add filters similar to PaymentInListView
@@ -490,21 +490,44 @@ class PaymentOutListView(LoginRequiredMixin, ListView):
         # Add totals and other context data
         return context
 
-class PaymentOutCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
+class PaymentOutCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = PaymentOut
+    form_class = PaymentOutForm
     template_name = 'ledger/payments/payment_out_form.html'
     success_message = "Payment out was recorded successfully."
-    
-    def get_form_class(self):
-        from .forms import PaymentOutForm
-        return PaymentOutForm
-    
+
+    def test_func(self):
+        user = self.request.user
+        return user.is_superuser or getattr(user, 'role', '') in ['admin', 'treasurer']
+
     def form_valid(self, form):
-        payment = form.save(commit=False)
-        payment.created_by = self.request.user
-        payment.save()
-        return super().form_valid(form)
-    
+        with transaction.atomic():
+            new_supplier_name = form.cleaned_data.get('new_supplier_name')
+            if new_supplier_name:
+                supplier = Supplier.objects.create(
+                    name=new_supplier_name,
+                    contact=form.cleaned_data.get('new_supplier_contact', ''),
+                    email=form.cleaned_data.get('new_supplier_email', ''),
+                    created_by=self.request.user,
+                    supplier_id=f"S-{Supplier.objects.count() + 1:04d}"
+                )
+                form.instance.payee_supplier = supplier
+                form.instance.payee_name = supplier.name  # <-- set here
+            else:
+                # If a supplier is selected
+                if form.instance.payee_supplier:
+                    form.instance.payee_name = form.instance.payee_supplier.name
+                    form.instance.contact = form.instance.payee_supplier.contact
+
+            # If payee_name is still empty, try to get it from the form field
+            if not form.instance.payee_name:
+                form.instance.payee_name = form.cleaned_data.get('payee_name', 'Unknown')
+
+            form.instance.created_by = self.request.user
+
+            return super().form_valid(form)
+
+
     def get_success_url(self):
         return reverse_lazy('payment_out_list')
 
@@ -590,3 +613,14 @@ class PaymentInPrintView(View):
             "payment": payment,
         }
         return render(request, self.template_name, context)
+    
+
+ #payment out receipt view
+@login_required 
+def payment_out_receipt_view(request, pk):
+    payment = get_object_or_404(PaymentOut, pk=pk)
+    context = {
+        'payment': payment
+    }
+    return render(request, "ledger/payments/payment_out_receipt.html", context)
+

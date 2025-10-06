@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    /* Thermal receipt style */
+    #receipt {
+        width: 300px;  
+        margin: 0 auto;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 12px;
+        border: 1px dashed #000;
+    }
+
+    #receipt h3, #receipt h4 {
+        text-align: center;
+        margin: 2px 0;
+    }
+
+    #receipt .line {
+        border-top: 1px dashed #000;
+        margin: 5px 0;
+    }
+
+    #receipt p {
+        margin: 2px 0;
+    }
+
+    @media print {
+        body * { visibility: hidden; }
+        #receipt, #receipt * { visibility: visible; }
+        #receipt { position: absolute; left: 0; top: 0; width: 100%; }
+        .no-print { display: none; }
+    }
+</style>
+
+<div id="receipt">
+    <h3>Rotaract Ledger</h3>
+    <h4>Payment Out Receipt</h4>
+    <p>Receipt #: {{ payment.id|stringformat:"05d" }}</p>
+    <p>Date: {{ payment.payment_date|date:"M d, Y" }}</p>
+
+
+    <div class="line"></div>
+
+    <p>Payee: {{ payment.payee_name }}</p>
+    {% if payment.payee_supplier %}
+    <p>Supplier ID: {{ payment.payee_supplier.supplier_id }}</p>
+    {% endif %}
+    <p>Expense Type: {{ payment.expense_type }}</p>
+    <p>Amount: {{ payment.amount|floatformat:2 }}</p>
+    <p>Account: {{ payment.account.name }}</p>
+    <p>Payment Method: {{ payment.payment_method }}</p>
+    {% if payment.invoice_number %}
+    <p>Invoice #: {{ payment.invoice_number }}</p>
+    {% endif %}
+    <p>Reason: {{ payment.reason }}</p>
+
+    <div class="line"></div>
+
+    <!-- Automatically use payee_name as received by -->
+    <p>Received By: {{ payment.payee_name }}</p>
+    <p>Signature: ___________________</p>
+
+    <div class="text-center mt-2 no-print">
+        <button onclick="window.print()" class="btn btn-primary btn-sm">Print Receipt</button>
+        <a href="{% url 'payment_out_list' %}" class="btn btn-secondary btn-sm">Back</a>
+    </div>
+</div>
+{% endblock %}

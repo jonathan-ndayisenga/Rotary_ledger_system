@@ -92,7 +92,8 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'payment_in_print' payment.pk %}" class="btn btn-outline-primary">
+                    <!-- Open printable version in a new tab -->
+                    <a href="{% url 'payment_in_print' payment.pk %}" target="_blank" class="btn btn-outline-primary">
                         <i class="fas fa-print"></i> Print Receipt
                     </a>
                     {% if user.role == 'admin' %}

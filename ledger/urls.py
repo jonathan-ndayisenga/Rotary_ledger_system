@@ -1,12 +1,7 @@
 # ledger/urls.py
 from django.urls import path
 from . import views
-from .views import (
-    MemberListView, MemberCreateView, MemberUpdateView, 
-    MemberDetailView, MemberDeleteView, PaymentInPrintView, SupplierListView, SupplierCreateView, SupplierUpdateView,
-    SupplierDetailView, SupplierDeleteView, PaymentInListView, PaymentInCreateView, 
-    PaymentInDetailView, PaymentInDeleteView, PaymentReceiptView
-)
+from .views import *
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
@@ -31,6 +26,13 @@ urlpatterns = [
     path('payments/<int:pk>/', PaymentInDetailView.as_view(), name='payment_in_detail'),
     path('payments/<int:pk>/delete/', PaymentInDeleteView.as_view(), name='payment_in_delete'),
     path('payments/<int:pk>/receipt/', PaymentReceiptView.as_view(), name='payment_receipt'),
-    path('payments/<int:pk>/print/', PaymentInPrintView.as_view(), name='payment_in_print')
+    path('payments/<int:pk>/print/', views.PaymentInPrintView.as_view(), name='payment_in_print'),
+
+    # Payment Out URLs
+    path('payment-out/', PaymentOutListView.as_view(), name='payment_out_list'),
+    path('payment-out/add/', PaymentOutCreateView.as_view(), name='payment_out_create'),
+    path('payment-out/<int:pk>/edit/', PaymentOutUpdateView.as_view(), name='payment_out_edit'),
+    path('payment-out/<int:pk>/', PaymentOutDetailView.as_view(), name='payment_out_detail'),
+    path('payment-out/<int:pk>/receipt/', views.payment_out_receipt_view, name='payment_out_receipt'),
 ]
 

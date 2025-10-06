@@ -130,7 +130,7 @@ class PaymentOut(models.Model):
     reason = models.TextField()
     
     # New fields
-    expense_type = models.ForeignKey('ExpenseType', on_delete=models.SET_NULL, null=True, blank=True)
+    expense_type = models.CharField(max_length=255)
     invoice_number = models.CharField(max_length=50, blank=True, null=True, unique=True)
     
     amount = models.DecimalField(
