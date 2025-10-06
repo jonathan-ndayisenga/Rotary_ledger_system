@@ -579,3 +579,14 @@ class AccountDetailView(LoginRequiredMixin, DetailView):
         context['payments_in'] = PaymentIn.objects.filter(account=self.object)
         context['payments_out'] = PaymentOut.objects.filter(account=self.object)
         return context
+
+
+class PaymentInPrintView(View):
+    template_name = "ledger/payments/payment_in_receipt.html"
+
+    def get(self, request, pk):
+        payment = get_object_or_404(PaymentIn, pk=pk)
+        context = {
+            "payment": payment,
+        }
+        return render(request, self.template_name, context)

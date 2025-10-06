@@ -22,10 +22,27 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
+from django.views import View
+
+class UserStatusView(LoginRequiredMixin, View):
+    def get(self, request):
+        user = request.user
+        return JsonResponse({
+            'username': user.username,
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff,
+            'is_active': user.is_active,
+            'role': getattr(user, 'role', 'No role field'),
+            'has_perm_add_member': user.has_perm('ledger.add_member'),
+        })
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('', include('ledger.urls')),
+    path('user-status/', UserStatusView.as_view(), name='user_status')
 ]
 
 if settings.DEBUG:

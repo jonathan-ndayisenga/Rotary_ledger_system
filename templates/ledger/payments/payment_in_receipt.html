@@ -13,6 +13,7 @@
             .no-print { display: none; }
             body { margin: 0; }
         }
+        button { padding: 8px 15px; margin-right: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -39,10 +40,12 @@
         <p>Thank you for your payment!</p>
         <p>Generated on: {% now "F j, Y" %}</p>
     </div>
-    
+
     <div class="no-print" style="margin-top: 20px;">
-        <button onclick="window.print()">Print Receipt</button>
-        <button onclick="window.close()">Close</button>
+        <button onclick="window.print()" class="btn btn-primary">Print Receipt</button>
+        <a href="{% url 'payment_in_detail' payment.pk %}" class="btn btn-secondary">
+        <i class="fas fa-times"></i> Close
+        </a>
     </div>
 </body>
 </html>
