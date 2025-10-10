@@ -82,6 +82,13 @@ class Account(models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_account_type_display()})"
 
+from decimal import Decimal
+from django.db import models, transaction
+from django.core.validators import MinValueValidator
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 class PaymentIn(models.Model):
     PAYMENT_METHODS = [
         ('cash', 'Cash'),
@@ -90,32 +97,85 @@ class PaymentIn(models.Model):
         ('cheque', 'Cheque'),
     ]
     
-    payer_member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True)
+    payer_member = models.ForeignKey('Member', on_delete=models.SET_NULL, null=True, blank=True)
     payer_name = models.CharField(max_length=200)
     contact = models.CharField(max_length=15, blank=True)
     email = models.EmailField(blank=True)
-    revenue_type = models.ForeignKey(RevenueType, on_delete=models.PROTECT)
-    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    revenue_type = models.ForeignKey('RevenueType', on_delete=models.PROTECT)
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
     payment_date = models.DateField()
     payment_method = models.CharField(max_length=10, choices=PAYMENT_METHODS)
-    account = models.ForeignKey(Account, on_delete=models.PROTECT)
-    receipt_number = models.CharField(max_length=20, unique=True)
+    account = models.ForeignKey('Account', on_delete=models.PROTECT)
+    receipt_number = models.CharField(max_length=20, unique=True, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
+
+        # If editing an existing instance, fetch the old one
+        old = None
+        if not is_new:
+            try:
+                old = PaymentIn.objects.get(pk=self.pk)
+            except PaymentIn.DoesNotExist:
+                old = None
+
+        # Generate receipt number if not set
         if not self.receipt_number:
-            last_receipt = PaymentIn.objects.order_by('-id').first()
-            last_number = int(last_receipt.receipt_number.split('-')[-1]) if last_receipt else 0
+            last = PaymentIn.objects.order_by('-id').first()
+            last_number = 0
+            if last and last.receipt_number:
+                try:
+                    last_number = int(last.receipt_number.split('-')[-1])
+                except (IndexError, ValueError):
+                    last_number = 0
             self.receipt_number = f"RC-{self.payment_date.strftime('%Y%m')}-{last_number + 1:04d}"
-        
-        super().save(*args, **kwargs)
-        self.account.balance += self.amount
-        self.account.save()
-    
+
+        # Use a transaction so updates are atomic
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+
+            # Adjust balances
+            if is_new:
+                # New payment: add amount
+                self.account.balance += self.amount
+                self.account.save()
+            else:
+                # Existing: reconcile change
+                if old:
+                    # If account changed
+                    if old.account_id != self.account_id:
+                        # subtract from old account
+                        old.account.balance -= old.amount
+                        old.account.save()
+                        # add to new account
+                        self.account.balance += self.amount
+                        self.account.save()
+                    else:
+                        # Same account, maybe amount changed
+                        diff = self.amount - old.amount
+                        if diff != 0:
+                            self.account.balance += diff
+                            self.account.save()
+
+    def delete(self, *args, **kwargs):
+        # When deleting, subtract the amount from the account
+        with transaction.atomic():
+            # reload account in case it's changed
+            acct = self.account
+            acct.balance -= self.amount
+            acct.save()
+            return super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"Receipt {self.receipt_number} - {self.payer_name}"
+
 
 class PaymentOut(models.Model):
     PAYMENT_METHODS = [

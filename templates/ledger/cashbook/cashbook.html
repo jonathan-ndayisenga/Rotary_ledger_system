@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-book me-2"></i>Cash Book
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-print"></i> Print
+            </button>
+            <a href="#" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-file-excel"></i> Export
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card border-primary">
+            <div class="card-body text-center py-2">
+                <h6 class="card-title text-muted mb-1">Opening</h6>
+                <h5 class="card-text text-primary">UGX {{ opening_balance|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-success">
+            <div class="card-body text-center py-2">
+                <h6 class="card-title text-muted mb-1">Receipts</h6>
+                <h5 class="card-text text-success">UGX {{ total_receipts|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-danger">
+            <div class="card-body text-center py-2">
+                <h6 class="card-title text-muted mb-1">Payments</h6>
+                <h5 class="card-text text-danger">UGX {{ total_payments|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-info">
+            <div class="card-body text-center py-2">
+                <h6 class="card-title text-muted mb-1">Net Movement</h6>
+                <h5 class="card-text text-info">UGX {{ net_movement|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-warning">
+            <div class="card-body text-center py-2">
+                <h6 class="card-title text-muted mb-1">Closing</h6>
+                <h5 class="card-text text-warning">UGX {{ closing_balance|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-secondary">
+            <div class="card-body text-center py-2">
+                <h6 class="card-title text-muted mb=1">Transactions</h6>
+                <h5 class="card-text text-secondary">{{ transaction_count }}</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Date Filter Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="card-title mb-0">Filter Date Range</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="form">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">From Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date"
+                           value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">To Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date"
+                           value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Generate Report
+                    </button>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <a href="{% url 'cashbook' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-times"></i> Clear Filter
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-12">
+                    <small class="text-muted">
+                        Report Period: {{ start_date|date:"M d, Y" }} to {{ end_date|date:"M d, Y" }}
+                    </small>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cashbook Entries Print Area -->
+<div id="cashbook-print-area">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">Cash Book Entries</h6>
+            <span class="badge bg-primary">{{ transaction_count }} transactions</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="10%">Date</th>
+                            <th width="10%">Type</th>
+                            <th width="15%">Reference</th>
+                            <th width="25%">Description</th>
+                            <th width="15%">Account</th> <!-- new column -->
+                            <th width="10%" class="text-end">Receipts (Debit)</th>
+                            <th width="10%" class="text-end">Payments (Credit)</th>
+                            <th width="10%" class="text-end">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in cashbook_entries %}
+                        <tr class="{% if entry.is_opening %}table-warning{% elif entry.type == 'Receipt' %}table-success-light{% else %}table-danger-light{% endif %}">
+                            <td>{{ entry.date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if entry.is_opening %}
+                                    <span class="badge bg-warning text-dark">OPENING</span>
+                                {% elif entry.type == 'Receipt' %}
+                                    <span class="badge bg-success">RECEIPT</span>
+                                {% else %}
+                                    <span class="badge bg-danger">PAYMENT</span>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ entry.reference }}</small></td>
+                            <td>{{ entry.description }}</td>
+                            <td>{{ entry.account.name }}</td>  <!-- display account -->
+                            <td class="text-end text-success">
+                                {% if entry.receipts %}
+                                    <strong>UGX {{ entry.receipts|floatformat:2|intcomma }}</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end text-danger">
+                                {% if entry.payments %}
+                                    <strong>UGX {{ entry.payments|floatformat:2|intcomma }}</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <strong class="{% if entry.balance >= 0 %}text-primary{% else %}text-danger{% endif %}">
+                                    UGX {{ entry.balance|floatformat:2|intcomma }}
+                                </strong>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                                <h5>No transactions found</h5>
+                                <p class="text-muted">No transactions match your selected date range.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-active">
+                        <tr>
+                            <td colspan="5" class="text-end"><strong>Totals:</strong></td>
+                            <td class="text-end text-success">
+                                <strong>UGX {{ total_receipts|floatformat:2|intcomma }}</strong>
+                            </td>
+                            <td class="text-end text-danger">
+                                <strong>UGX {{ total_payments|floatformat:2|intcomma }}</strong>
+                            </td>
+                            <td class="text-end">
+                                <strong class="{% if closing_balance >= 0 %}text-primary{% else %}text-danger{% endif %}">
+                                    UGX {{ closing_balance|floatformat:2|intcomma }}
+                                </strong>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Print-friendly summary (hidden on screen) -->
+<div class="d-none d-print-block mt-4">
+    <h4>Cash Book Summary</h4>
+    <p><strong>Period:</strong> {{ start_date|date:"M d, Y" }} to {{ end_date|date:"M d, Y" }}</p>
+    <p><strong>Opening Balance:</strong> UGX {{ opening_balance|floatformat:2|intcomma }}</p>
+    <p><strong>Closing Balance:</strong> UGX {{ closing_balance|floatformat:2|intcomma }}</p>
+    <p><strong>Total Receipts:</strong> UGX {{ total_receipts|floatformat:2|intcomma }}</p>
+    <p><strong>Total Payments:</strong> UGX {{ total_payments|floatformat:2|intcomma }}</p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const endDateField = document.getElementById('end_date');
+    if (!endDateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        endDateField.value = today;
+    }
+    const startDateField = document.getElementById('start_date');
+    if (!startDateField.value) {
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDateField.value = firstDay.toISOString().split('T')[0];
+    }
+});
+</script>
+
+<style>
+.table-success-light {
+    background-color: rgba(25, 135, 84, 0.05) !important;
+}
+.table-danger-light {
+    background-color: rgba(220, 53, 69, 0.05) !important;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #cashbook-print-area, #cashbook-print-area * {
+        visibility: visible;
+    }
+    #cashbook-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .btn, .btn-toolbar, form, .card-header .badge, .row.mb-4, .card.mb-4 {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}

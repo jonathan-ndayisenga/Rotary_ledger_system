@@ -282,6 +282,21 @@ class PaymentInForm(forms.ModelForm):
         labels = {
             'notes': 'Notes',
         }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Check if member ID is passed in initial data
+        if 'initial' in kwargs and 'member' in kwargs['initial']:
+            member_id = kwargs['initial']['member']
+            try:
+                member = Member.objects.get(pk=member_id)
+                self.fields['member'].initial = member
+            except Member.DoesNotExist:
+                pass
+        self.helper = FormHelper()
+
+        
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

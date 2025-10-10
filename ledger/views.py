@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from django.db.models.functions import TruncMonth, TruncYear
 import json
@@ -18,6 +18,8 @@ from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.contrib import messages
 from .forms import PaymentOutForm
+from itertools import chain
+
 # JSON Encoder for Decimals
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -624,3 +626,183 @@ def payment_out_receipt_view(request, pk):
     }
     return render(request, "ledger/payments/payment_out_receipt.html", context)
 
+# ledger/views.py - Add after other views
+
+class MemberCashbookView(View):
+    def get(self, request, pk):
+        member = get_object_or_404(Member, pk=pk)
+
+        # Filter payments linked to this member
+        payments = PaymentIn.objects.filter(payer_member=member).order_by('payment_date')
+
+        total_paid = payments.aggregate(total=Sum('amount'))['total'] or 0
+        payment_count = payments.count()
+
+        payment_history = []
+        running_balance = 0
+        for p in payments:
+            running_balance += p.amount
+            payment_history.append({'payment': p, 'running_balance': running_balance})
+
+        context = {
+            'member': member,
+            'payments': payments,
+            'payment_history': payment_history,
+            'total_paid': total_paid,
+            'payment_count': payment_count,
+            'current_balance': running_balance,
+            
+        }
+        return render(request, 'ledger/members/member_cashbook.html', context)
+
+# class MemberPaymentHistoryView(LoginRequiredMixin, ListView):
+#     """Alternative view showing just payment history table"""
+#     model = PaymentIn
+#     template_name = 'ledger/members/member_payment_history.html'
+#     context_object_name = 'payments'
+#     paginate_by = 20
+
+#     def get_queryset(self):
+#         member_id = self.kwargs['pk']
+#         queryset = PaymentIn.objects.filter(
+#             payer_member_id=member_id
+#         ).select_related('revenue_type', 'account').order_by('-payment_date')
+        
+#         # Apply date filtering
+#         start_date = self.request.GET.get('start_date')
+#         end_date = self.request.GET.get('end_date')
+        
+#         if start_date:
+#             queryset = queryset.filter(payment_date__gte=start_date)
+#         if end_date:
+#             queryset = queryset.filter(payment_date__lte=end_date)
+            
+#         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        member_id = self.kwargs['pk']
+        context['member'] = Member.objects.get(pk=member_id)
+        
+        # Calculate totals
+        queryset = self.get_queryset()
+        context['total_paid'] = queryset.aggregate(Sum('amount'))['amount__sum'] or 0
+        context['payment_count'] = queryset.count()
+        
+        return context
+    
+
+    # cashbook view
+@login_required
+def cashbook_view(request):
+    # Get date range from request, default to current month if not provided
+    today = timezone.now().date()
+    
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    # Set default date range to current month if not provided
+    if not start_date:
+        start_date = today.replace(day=1)  # First day of current month
+    if not end_date:
+        end_date = today  # Today
+    
+    # Convert string dates to date objects if they're strings
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get opening balance (balance before start_date)
+    opening_balance = 0
+    try:
+        # Sum of all accounts' balances at the start of the period
+        # Note: This assumes your account balances are current. For a real system, 
+        # you'd calculate balance up to the day before start_date
+        accounts = Account.objects.filter(is_active=True)
+        opening_balance = sum(account.balance for account in accounts)
+        
+        # Adjust for transactions that haven't been recorded in the period
+        # This is a simplified approach - in a real system, you'd track historical balances
+        pre_period_payments_in = PaymentIn.objects.filter(payment_date__lt=start_date).aggregate(Sum('amount'))['amount__sum'] or 0
+        pre_period_payments_out = PaymentOut.objects.filter(payment_date__lt=start_date).aggregate(Sum('amount'))['amount__sum'] or 0
+        opening_balance = pre_period_payments_in - pre_period_payments_out
+        
+    except Exception as e:
+        # If there's any error calculating opening balance, default to 0
+        opening_balance = 0
+    
+    # Get all transactions in the date range, ordered by date
+    payments_in = PaymentIn.objects.filter(
+        payment_date__range=[start_date, end_date]
+    ).select_related('revenue_type', 'account').order_by('payment_date', 'id')
+    
+    payments_out = PaymentOut.objects.filter(
+        payment_date__range=[start_date, end_date]
+    ).select_related('account').order_by('payment_date', 'id')
+    
+    # Merge and sort transactions chronologically
+    all_transactions = sorted(
+        chain(payments_in, payments_out),
+        key=lambda transaction: (transaction.payment_date, getattr(transaction, 'id', 0))
+    )
+    
+    # Calculate running balance
+    cashbook_entries = []
+    balance = opening_balance
+    
+    # Add opening balance as first entry
+    cashbook_entries.append({
+        'date': start_date,
+        'type': 'Opening Balance',
+        'description': 'Opening Balance',
+        'reference': '-',
+        'receipts': None,
+        'payments': None,
+        'balance': balance,
+        'is_opening': True
+    })
+    
+    for transaction in all_transactions:
+        if isinstance(transaction, PaymentIn):
+            balance += transaction.amount
+            entry_type = 'Receipt'
+            description = f"{transaction.payer_name} - {transaction.revenue_type.name}"
+            reference = transaction.receipt_number
+        else:
+            balance -= transaction.amount
+            entry_type = 'Payment'
+            description = f"{transaction.payee_name} - {transaction.reason}"
+            reference = transaction.receipt_number
+        
+        cashbook_entries.append({
+            'date': transaction.payment_date,
+            'type': entry_type,
+            'description': description,
+            'reference': reference,
+            'receipts': transaction.amount if isinstance(transaction, PaymentIn) else None,
+            'payments': transaction.amount if isinstance(transaction, PaymentOut) else None,
+            'balance': balance,
+            'transaction': transaction,
+            'account': transaction.account  if hasattr(transaction, 'account') else None,
+            'is_opening': False
+        })
+    
+    # Calculate totals
+    total_receipts = sum(entry['receipts'] or 0 for entry in cashbook_entries)
+    total_payments = sum(entry['payments'] or 0 for entry in cashbook_entries)
+    net_movement = total_receipts - total_payments
+    closing_balance = opening_balance + net_movement
+    
+    context = {
+        'cashbook_entries': cashbook_entries,
+        'start_date': start_date,
+        'end_date': end_date,
+        'opening_balance': opening_balance,
+        'closing_balance': closing_balance,
+        'total_receipts': total_receipts,
+        'total_payments': total_payments,
+        'net_movement': net_movement,
+        'transaction_count': len(all_transactions),
+    }
+    return render(request, 'ledger/cashbook/cashbook.html', context)
