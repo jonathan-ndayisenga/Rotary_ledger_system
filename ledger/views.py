@@ -255,6 +255,20 @@ class MemberDetailView(LoginRequiredMixin, DetailView):
         context['payments'] = PaymentIn.objects.filter(payer_member=self.object)
         return context
 
+def member_detail(request, pk):
+    member = get_object_or_404(Member, pk=pk)
+    payments = member.payments.all()  # adjust related name
+    total_payments = payments.count()
+    total_amount = payments.aggregate(total=Sum('amount'))['total'] or 0
+
+    context = {
+        'member': member,
+        'payments': payments,
+        'total_payments': total_payments,
+        'total_amount': total_amount,
+    }
+    return render(request, 'ledger/members/member_detail.html', context)
+
 class MemberDeleteView(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
     model = Member
     template_name = 'ledger/members/member_confirm_delete.html'

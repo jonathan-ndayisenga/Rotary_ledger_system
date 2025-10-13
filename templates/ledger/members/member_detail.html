@@ -80,18 +80,16 @@
                 <h6 class="card-title mb-0">Payment Summary</h6>
             </div>
             <div class="card-body">
-                {% with total_payments=payments.count total_amount=payments|sum:'amount' %}
                 <div class="row text-center">
                     <div class="col-6">
                         <h4 class="text-primary">{{ total_payments }}</h4>
                         <small class="text-muted">Total Payments</small>
                     </div>
                     <div class="col-6">
-                        <h4 class="text-success">KSh {{ total_amount|floatformat:2 }}</h4>
+                        <h4 class="text-success">UGX {{ total_amount|floatformat:2 }}</h4>
                         <small class="text-muted">Total Paid</small>
                     </div>
                 </div>
-                {% endwith %}
                 <div class="d-grid gap-2 mt-3">
                     <a href="{% url 'payment_in_create' %}?member={{ member.pk }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus-circle"></i> Record New Payment
@@ -130,7 +128,7 @@
                                     <span class="badge bg-info">{{ payment.revenue_type.name }}</span>
                                 </td>
                                 <td class="text-success">
-                                    <strong>KSh {{ payment.amount|floatformat:2 }}</strong>
+                                    <strong>UGX {{ payment.amount|floatformat:2 }}</strong>
                                 </td>
                                 <td>
                                     <span class="badge bg-secondary">{{ payment.receipt_number }}</span>
@@ -151,7 +149,6 @@
                     </table>
                 </div>
                 
-                <!-- Show message if there are more payments -->
                 {% if payments.count > 5 %}
                 <div class="text-center mt-2">
                     <small class="text-muted">

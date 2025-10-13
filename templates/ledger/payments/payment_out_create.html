@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-6">
+    <h2 class="text-2xl font-bold mb-4">Record Payment Out</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+    </form>
+</div>
+{% endblock %}

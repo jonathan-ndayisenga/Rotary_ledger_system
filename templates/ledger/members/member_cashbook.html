@@ -25,7 +25,7 @@
         <div class="card border-primary">
             <div class="card-body text-center">
                 <h6 class="card-title text-muted">Total Paid</h6>
-                <h3 class="card-text text-primary">KSh {{ total_paid|floatformat:2|intcomma }}</h3>
+                <h3 class="card-text text-primary">UGX {{ total_paid|floatformat:2|intcomma }}</h3>
             </div>
         </div>
     </div>
@@ -123,8 +123,8 @@
                             <td><span class="badge bg-info">{{ payment.revenue_type.name }}</span></td>
                             <td><span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span></td>
                             <td>{{ payment.account.name }}</td>
-                            <td class="text-success"><strong>KSh {{ payment.amount|floatformat:2|intcomma }}</strong></td>
-                            <td class="text-primary"><strong>KSh {{ entry.running_balance|floatformat:2|intcomma }}</strong></td>
+                            <td class="text-success"><strong>UGX {{ payment.amount|floatformat:2|intcomma }}</strong></td>
+                            <td class="text-primary"><strong>UGX {{ entry.running_balance|floatformat:2|intcomma }}</strong></td>
                             <td>
                                 <div class="btn-group btn-group-sm print-hide">
                                     <a href="{% url 'payment_in_detail' payment.pk %}" class="btn btn-outline-primary" title="View">
@@ -142,7 +142,7 @@
                     <tfoot>
                         <tr class="table-active">
                             <td colspan="5" class="text-end"><strong>Total:</strong></td>
-                            <td class="text-success"><strong>KSh {{ total_paid|floatformat:2|intcomma }}</strong></td>
+                            <td class="text-success"><strong>UGX {{ total_paid|floatformat:2|intcomma }}</strong></td>
                             <td colspan="2"></td>
                         </tr>
                     </tfoot>
