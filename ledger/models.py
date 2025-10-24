@@ -1,4 +1,5 @@
 # ledger/models.py
+from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
@@ -115,66 +116,75 @@ class PaymentIn(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     
-    def save(self, *args, **kwargs):
-        is_new = self._state.adding
+def save(self, *args, **kwargs):
+    is_new = self._state.adding
+    old = None
 
-        # If editing an existing instance, fetch the old one
-        old = None
-        if not is_new:
+    if not is_new:
+        try:
+            old = PaymentIn.objects.get(pk=self.pk)
+        except PaymentIn.DoesNotExist:
+            old = None
+
+    # Generate a unique receipt number safely
+    if not self.receipt_number:
+        base_prefix = f"RC-{self.payment_date.strftime('%Y%m')}-"
+        last = (
+            PaymentIn.objects
+            .filter(receipt_number__startswith=base_prefix)
+            .order_by('-id')
+            .first()
+        )
+
+        last_number = 0
+        if last and last.receipt_number:
             try:
-                old = PaymentIn.objects.get(pk=self.pk)
-            except PaymentIn.DoesNotExist:
-                old = None
+                last_number = int(last.receipt_number.split('-')[-1])
+            except (IndexError, ValueError):
+                last_number = 0
 
-        # Generate receipt number if not set
-        if not self.receipt_number:
-            last = PaymentIn.objects.order_by('-id').first()
-            last_number = 0
-            if last and last.receipt_number:
-                try:
-                    last_number = int(last.receipt_number.split('-')[-1])
-                except (IndexError, ValueError):
-                    last_number = 0
-            self.receipt_number = f"RC-{self.payment_date.strftime('%Y%m')}-{last_number + 1:04d}"
+        new_number = last_number + 1
 
-        # Use a transaction so updates are atomic
-        with transaction.atomic():
-            super().save(*args, **kwargs)
+        # Ensure absolute uniqueness (important for SQLite)
+        while PaymentIn.objects.filter(receipt_number=f"{base_prefix}{new_number:04d}").exists():
+            new_number += 1
 
-            # Adjust balances
-            if is_new:
-                # New payment: add amount
+        self.receipt_number = f"{base_prefix}{new_number:04d}"
+
+    # --- Balance handling ---
+    with transaction.atomic():
+        super().save(*args, **kwargs)
+
+        if is_new:
+            # New payment — increase balance
+            self.account.balance += self.amount
+            self.account.save()
+        elif old:
+            # Update case
+            if old.account_id != self.account_id:
+                # Account changed
+                old.account.balance -= old.amount
+                old.account.save()
                 self.account.balance += self.amount
                 self.account.save()
             else:
-                # Existing: reconcile change
-                if old:
-                    # If account changed
-                    if old.account_id != self.account_id:
-                        # subtract from old account
-                        old.account.balance -= old.amount
-                        old.account.save()
-                        # add to new account
-                        self.account.balance += self.amount
-                        self.account.save()
-                    else:
-                        # Same account, maybe amount changed
-                        diff = self.amount - old.amount
-                        if diff != 0:
-                            self.account.balance += diff
-                            self.account.save()
+                # Same account, maybe amount changed
+                diff = self.amount - old.amount
+                if diff != 0:
+                    self.account.balance += diff
+                    self.account.save()
 
-    def delete(self, *args, **kwargs):
-        # When deleting, subtract the amount from the account
-        with transaction.atomic():
-            # reload account in case it's changed
-            acct = self.account
-            acct.balance -= self.amount
-            acct.save()
-            return super().delete(*args, **kwargs)
 
-    def __str__(self):
-        return f"Receipt {self.receipt_number} - {self.payer_name}"
+def delete(self, *args, **kwargs):
+    with transaction.atomic():
+        acct = self.account
+        acct.balance -= self.amount
+        acct.save()
+        return super().delete(*args, **kwargs)
+
+
+def __str__(self):
+    return f"Receipt {self.receipt_number} - {self.payer_name}"
 
 
 class PaymentOut(models.Model):
@@ -238,3 +248,13 @@ class AuditLog(models.Model):
     
     def __str__(self):
         return f"{self.user} {self.action} {self.object_type} at {self.timestamp}"
+    
+
+# class PaymentIn(models.Model):
+#     recorded_by = models.ForeignKey(
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.SET_NULL,
+#         null=True,
+#         blank=True,
+#         related_name='recorded_payments'
+#     )

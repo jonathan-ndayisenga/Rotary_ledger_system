@@ -83,7 +83,7 @@
             <div class="card-body text-center">
                 <h6 class="card-title text-muted">This Month</h6>
                 <h3 class="card-text text-info">
-                    KSh {{ month_total|floatformat:2|intcomma }}
+                    UGX {{ month_total|floatformat:2|intcomma }}
                 </h3>
             </div>
         </div>
@@ -130,7 +130,7 @@
                             <span class="badge bg-info">{{ payment.revenue_type.name }}</span>
                         </td>
                         <td class="text-success">
-                            <strong>KSh {{ payment.amount|floatformat:2|intcomma }}</strong>
+                            <strong>UGX {{ payment.amount|floatformat:2|intcomma }}</strong>
                         </td>
                         <td>
                             <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>

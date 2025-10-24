@@ -27,3 +27,5 @@ class CustomUser(AbstractUser):
             ("can_record_payments", "Can record payments"),
             ("can_manage_users", "Can manage users"),
         ]
+
+
